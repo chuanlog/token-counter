@@ -4,7 +4,7 @@ import fsp from 'node:fs/promises';
 import http from 'node:http';
 import path from 'node:path';
 
-import { loadConfig, printHelp } from './config.js';
+import { loadConfig, printHelp, ROOT } from './config.js';
 import { Store } from './db.js';
 import { Ingestor } from './ingest.js';
 import { LMStudioProbe } from './lmstudio.js';
@@ -43,6 +43,11 @@ function json(res, status, payload) {
 
 function formatNumber(n) {
   return new Intl.NumberFormat('zh-CN').format(Math.round(Number(n) || 0));
+}
+
+function isLoopbackAddress(address) {
+  if (!address) return false;
+  return address === '127.0.0.1' || address === '::1' || address === '::ffff:127.0.0.1';
 }
 
 function openBrowser(url) {
@@ -165,6 +170,9 @@ async function main() {
     printHelp();
     return;
   }
+
+  const pidFile = path.join(ROOT, 'data', `token-counter-${config.port}.pid`);
+  let triggerShutdown = null;
 
   const store = new Store(config.db);
   if (config.rebuild) {
@@ -294,6 +302,23 @@ async function main() {
         return;
       }
 
+      if (pathname === '/api/shutdown') {
+        if (req.method !== 'POST') {
+          json(res, 405, { error: 'Method Not Allowed' });
+          return;
+        }
+        if (
+          !isLoopbackAddress(req.socket.remoteAddress) ||
+          req.headers['x-token-lens'] !== 'shutdown'
+        ) {
+          json(res, 403, { error: 'Forbidden' });
+          return;
+        }
+        json(res, 200, { ok: true, message: 'Token Lens 正在停止' });
+        setTimeout(() => triggerShutdown?.(), 120);
+        return;
+      }
+
       if (pathname === '/healthz') {
         json(res, 200, { ok: true });
         return;
@@ -331,11 +356,27 @@ async function main() {
   server.listen(config.port, config.host, () => {
     const displayHost = config.host === '0.0.0.0' ? '127.0.0.1' : config.host;
     const address = `http://${displayHost}:${config.port}`;
+    try {
+      fs.mkdirSync(path.dirname(pidFile), { recursive: true });
+      fs.writeFileSync(
+        pidFile,
+        `${JSON.stringify({
+          pid: process.pid,
+          port: config.port,
+          host: config.host,
+          startedAt: Date.now(),
+          url: address,
+        })}\n`,
+        'utf8',
+      );
+    } catch (error) {
+      console.warn('[token-lens] 写入 PID 文件失败:', error.message);
+    }
     if (!config.quiet) {
       console.log('');
       console.log(`  Web 界面: ${address}`);
       if (config.dev) console.log('  开发模式: Vite 前端在 http://127.0.0.1:5179');
-      console.log('  按 Ctrl+C 停止。');
+      console.log('  停止服务: 按 Ctrl+C、运行 stop.bat / ./stop.sh，或点击页面右上角信息按钮里的“停止服务”。');
       console.log('');
     }
     if (config.open) openBrowser(address);
@@ -348,19 +389,40 @@ async function main() {
   }, SCAN_INTERVAL_MS);
   timer.unref?.();
 
-  const shutdown = () => {
+  let shuttingDown = false;
+  const shutdown = (reason = 'signal') => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     clearInterval(timer);
+    try {
+      fs.rmSync(pidFile, { force: true });
+    } catch {
+      // ignore
+    }
+    if (!config.quiet) console.log(`[token-lens] 正在停止（${reason}）…`);
     server.close(() => {
       store.close();
       process.exit(0);
     });
     setTimeout(() => {
-      store.close();
+      try {
+        store.close();
+      } catch {
+        // ignore
+      }
       process.exit(0);
-    }, 1000).unref?.();
+    }, 1500).unref?.();
   };
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  triggerShutdown = () => shutdown('api');
+  process.on('exit', () => {
+    try {
+      fs.rmSync(pidFile, { force: true });
+    } catch {
+      // ignore
+    }
+  });
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 main().catch((error) => {

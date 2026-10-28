@@ -2060,6 +2060,90 @@ code {
   flex-wrap: wrap;
 }
 
+/* ---------- Stopped state ---------- */
+
+.stopped-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 17px;
+  padding: 27px 28px;
+}
+
+.stopped-orb {
+  width: 45px;
+  height: 45px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+}
+
+.stopped-orb .status-dot {
+  width: 10px;
+  height: 10px;
+  background: #555d69;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.035);
+}
+
+.stopped-copy {
+  min-width: 0;
+}
+
+.stopped-card .eyebrow {
+  color: var(--ink-4);
+}
+
+.stopped-copy h2 {
+  margin: 4px 0 7px;
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.stopped-copy p {
+  margin: 0;
+  max-width: 720px;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.stopped-command {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.stopped-command code {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #0d1015;
+  color: var(--ink-2);
+  font-size: 10px;
+}
+
+.stopped-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 15px;
+}
+
+.stopped-message {
+  color: var(--ink-4);
+  font-size: 10.5px;
+}
+
 /* ---------- Loading & errors ---------- */
 
 .loading-state {
@@ -2397,6 +2481,69 @@ code {
 
 .modal-refresh-note.is-error {
   color: #e08a8a;
+}
+
+/* ---------- Danger / shutdown ---------- */
+
+.danger-zone {
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.danger-zone h3 {
+  color: #e0a0a0;
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 33px;
+  padding: 0 13px;
+  border: 1px solid rgba(208, 59, 59, 0.38);
+  border-radius: 8px;
+  background: rgba(208, 59, 59, 0.08);
+  color: #e0a0a0;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+  white-space: nowrap;
+}
+
+.danger-button:hover {
+  background: rgba(208, 59, 59, 0.16);
+  border-color: rgba(208, 59, 59, 0.55);
+}
+
+.danger-button.is-solid {
+  border-color: #b84242;
+  background: #a83232;
+  color: #fff;
+}
+
+.danger-button.is-solid:hover {
+  background: #bf3a3a;
+}
+
+.danger-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.stop-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid rgba(208, 59, 59, 0.3);
+  border-radius: 8px;
+  background: rgba(208, 59, 59, 0.06);
+  color: var(--ink-3);
+  font-size: 11px;
 }
 
 /* ---------- Footer ---------- */
@@ -2814,6 +2961,20 @@ code {
 
   .setup-card {
     padding: 20px 18px;
+  }
+
+  .stopped-card {
+    padding: 20px 18px;
+  }
+
+  .stopped-orb {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+  }
+
+  .stopped-copy h2 {
+    font-size: 19px;
   }
 
   .setup-hero {

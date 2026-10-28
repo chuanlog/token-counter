@@ -42,3 +42,11 @@ export async function triggerRefresh(): Promise<void> {
   const response = await fetch('/api/refresh', { method: 'POST' });
   if (!response.ok) throw new Error(await readError(response));
 }
+
+export async function shutdownServer(): Promise<void> {
+  const response = await fetch('/api/shutdown', {
+    method: 'POST',
+    headers: { 'X-Token-Lens': 'shutdown' },
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}

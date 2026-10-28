@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { fetchDashboard, triggerRefresh } from './api';
+import { fetchDashboard, shutdownServer, triggerRefresh } from './api';
 import { FilterBar } from './components/FilterBar';
 import { Footer } from './components/Footer';
 import { InfoModal } from './components/InfoModal';
 import { EmptyState, RangeEmpty } from './components/EmptyState';
 import { RecentTable } from './components/RecentTable';
+import { ServerStopped } from './components/ServerStopped';
 import { SummaryCards } from './components/SummaryCards';
 import { TopBar } from './components/TopBar';
 import { TokenTrend } from './components/TokenTrend';
@@ -109,6 +110,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [infoOpen, setInfoOpen] = useState(false);
   const [manualRefreshing, setManualRefreshing] = useState(false);
+  const [serverStopped, setServerStopped] = useState(false);
 
   const dataRef = useRef<Dashboard | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -163,20 +165,20 @@ export default function App() {
   }, [load]);
 
   useEffect(() => {
-    if (!autoRefresh) return undefined;
+    if (!autoRefresh || serverStopped) return undefined;
     const id = window.setInterval(() => {
       if (document.visibilityState === 'visible') void load({ background: true });
     }, 5000);
     return () => window.clearInterval(id);
-  }, [autoRefresh, load]);
+  }, [autoRefresh, serverStopped, load]);
 
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void load({ background: true });
+      if (!serverStopped && document.visibilityState === 'visible') void load({ background: true });
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => document.removeEventListener('visibilitychange', onVisible);
-  }, [load]);
+  }, [serverStopped, load]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -241,6 +243,15 @@ export default function App() {
     persist(STORAGE.model, 'all');
   }, []);
 
+  const handleShutdown = useCallback(async () => {
+    await shutdownServer();
+    abortRef.current?.abort();
+    setServerStopped(true);
+    setRefreshing(false);
+    setManualRefreshing(false);
+    setInfoOpen(false);
+  }, []);
+
   const hasNoRecords = data != null && data.meta.totalRecords === 0;
   const rangeEmpty = data != null && data.meta.totalRecords > 0 && data.summary.requests === 0;
   const busy = refreshing || manualRefreshing;
@@ -250,77 +261,83 @@ export default function App() {
       <TopBar meta={data?.meta ?? null} onInfo={() => setInfoOpen(true)} />
 
       <main className="page">
-        <FilterBar
-          preset={preset}
-          from={displayRange.from}
-          to={displayRange.to}
-          onRangeChange={handleRangeChange}
-          model={model}
-          modelOptions={data?.modelOptions ?? []}
-          colors={colors}
-          onModelChange={handleModelChange}
-          granularity={granularity}
-          actualGranularity={data?.filter.granularity}
-          onGranularityChange={setGranularity}
-          autoRefresh={autoRefresh}
-          onAutoRefreshChange={handleAutoRefreshChange}
-          updatedAt={data?.meta.generatedAt ?? null}
-          refreshing={busy}
-          onRefresh={() => {
-            void refreshNow().catch(() => {});
-          }}
-        />
-
-        {error && data ? (
-          <ErrorBanner
-            message={error}
-            onRetry={() => {
-              void refreshNow().catch(() => {});
-            }}
-          />
-        ) : null}
-
-        <div className={`page-content${busy && data ? ' is-refreshing' : ''}`}>
-          {hasNoRecords ? (
-            <EmptyState
-              meta={data.meta}
+        {serverStopped ? (
+          <ServerStopped port={window.location.port || '1236'} />
+        ) : (
+          <>
+            <FilterBar
+              preset={preset}
+              from={displayRange.from}
+              to={displayRange.to}
+              onRangeChange={handleRangeChange}
+              model={model}
+              modelOptions={data?.modelOptions ?? []}
+              colors={colors}
+              onModelChange={handleModelChange}
+              granularity={granularity}
+              actualGranularity={data?.filter.granularity}
+              onGranularityChange={setGranularity}
+              autoRefresh={autoRefresh}
+              onAutoRefreshChange={handleAutoRefreshChange}
+              updatedAt={data?.meta.generatedAt ?? null}
               refreshing={busy}
               onRefresh={() => {
                 void refreshNow().catch(() => {});
               }}
             />
-          ) : rangeEmpty ? (
-            <RangeEmpty
-              modelFiltered={model !== 'all'}
-              onShowAll={showAll}
-              onClearModel={clearModel}
-            />
-          ) : data ? (
-            <>
-              <SummaryCards data={data} />
-              <div className="charts-grid">
-                <TokenTrend data={data} colors={colors} onShowAll={showAll} />
-                <TpsChart data={data} colors={colors} onShowAll={showAll} />
-              </div>
-              <ModelSection data={data} colors={colors} />
-              <RecentTable data={data} colors={colors} />
-            </>
-          ) : loading ? (
-            <LoadingState />
-          ) : (
-            <div className="card fatal-error">
-              <AlertIcon size={22} />
-              <div>
-                <h2>无法读取统计数据</h2>
-                <p>{error || '请确认 Token Lens 服务正在运行，然后重试。'}</p>
-              </div>
-              <button type="button" className="secondary-button" onClick={() => void load()}>
-                <RefreshIcon size={15} />
-                重试
-              </button>
+
+            {error && data ? (
+              <ErrorBanner
+                message={error}
+                onRetry={() => {
+                  void refreshNow().catch(() => {});
+                }}
+              />
+            ) : null}
+
+            <div className={`page-content${busy && data ? ' is-refreshing' : ''}`}>
+              {hasNoRecords ? (
+                <EmptyState
+                  meta={data.meta}
+                  refreshing={busy}
+                  onRefresh={() => {
+                    void refreshNow().catch(() => {});
+                  }}
+                />
+              ) : rangeEmpty ? (
+                <RangeEmpty
+                  modelFiltered={model !== 'all'}
+                  onShowAll={showAll}
+                  onClearModel={clearModel}
+                />
+              ) : data ? (
+                <>
+                  <SummaryCards data={data} />
+                  <div className="charts-grid">
+                    <TokenTrend data={data} colors={colors} onShowAll={showAll} />
+                    <TpsChart data={data} colors={colors} onShowAll={showAll} />
+                  </div>
+                  <ModelSection data={data} colors={colors} />
+                  <RecentTable data={data} colors={colors} />
+                </>
+              ) : loading ? (
+                <LoadingState />
+              ) : (
+                <div className="card fatal-error">
+                  <AlertIcon size={22} />
+                  <div>
+                    <h2>无法读取统计数据</h2>
+                    <p>{error || '请确认 Token Lens 服务正在运行，然后重试。'}</p>
+                  </div>
+                  <button type="button" className="secondary-button" onClick={() => void load()}>
+                    <RefreshIcon size={15} />
+                    重试
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
 
         <Footer meta={data?.meta ?? null} onInfo={() => setInfoOpen(true)} />
       </main>
@@ -330,6 +347,7 @@ export default function App() {
         meta={data?.meta ?? null}
         onClose={() => setInfoOpen(false)}
         onRefresh={refreshNow}
+        onShutdown={handleShutdown}
       />
     </div>
   );

@@ -9,12 +9,16 @@ interface InfoModalProps {
   meta: DashboardMeta | null;
   onClose: () => void;
   onRefresh: () => Promise<void>;
+  onShutdown: () => Promise<void>;
 }
 
-export function InfoModal({ open, meta, onClose, onRefresh }: InfoModalProps) {
+export function InfoModal({ open, meta, onClose, onRefresh, onShutdown }: InfoModalProps) {
   const closeRef = useRef<HTMLButtonElement>(null);
   const [refreshState, setRefreshState] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
   const [refreshMessage, setRefreshMessage] = useState('');
+  const [confirmShutdown, setConfirmShutdown] = useState(false);
+  const [stopping, setStopping] = useState(false);
+  const [stopError, setStopError] = useState('');
 
   useEffect(() => {
     if (!open) return undefined;
@@ -35,6 +39,9 @@ export function InfoModal({ open, meta, onClose, onRefresh }: InfoModalProps) {
     if (!open) {
       setRefreshState('idle');
       setRefreshMessage('');
+      setConfirmShutdown(false);
+      setStopping(false);
+      setStopError('');
     }
   }, [open]);
 
@@ -50,6 +57,17 @@ export function InfoModal({ open, meta, onClose, onRefresh }: InfoModalProps) {
     } catch (error) {
       setRefreshState('error');
       setRefreshMessage(error instanceof Error ? error.message : '扫描失败');
+    }
+  };
+
+  const handleShutdown = async () => {
+    setStopping(true);
+    setStopError('');
+    try {
+      await onShutdown();
+    } catch (error) {
+      setStopError(error instanceof Error ? error.message : '停止服务失败');
+      setStopping(false);
     }
   };
 
@@ -179,6 +197,40 @@ export function InfoModal({ open, meta, onClose, onRefresh }: InfoModalProps) {
               <li>把 LM Studio 日志级别设为 Verbose，确认 <code>server-logs</code> 目录在写入。</li>
               <li>如果日志目录在别处，使用 <code>npm start -- --logs "&lt;目录&gt;"</code> 启动。</li>
             </ol>
+          </section>
+
+          <section className="modal-section danger-zone">
+            <h3>停止服务</h3>
+            <p>
+              停止后会释放端口 {window.location.port || '1236'}，页面将不再刷新；已采集的数据仍保存在本机
+              SQLite 中。重新启动请双击 <code>start.bat</code> 或运行 <code>npm start</code>。
+            </p>
+            {!confirmShutdown ? (
+              <button type="button" className="danger-button" onClick={() => setConfirmShutdown(true)}>
+                停止 Token Lens
+              </button>
+            ) : (
+              <div className="stop-confirm">
+                <span>确认停止当前服务？</span>
+                <button
+                  type="button"
+                  className="danger-button is-solid"
+                  onClick={handleShutdown}
+                  disabled={stopping}
+                >
+                  {stopping ? '停止中…' : '确认停止'}
+                </button>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={() => setConfirmShutdown(false)}
+                  disabled={stopping}
+                >
+                  取消
+                </button>
+              </div>
+            )}
+            {stopError ? <p className="text-warning">{stopError}</p> : null}
           </section>
         </div>
 

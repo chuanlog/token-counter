@@ -50,7 +50,20 @@ Token Lens 解析这些行，再结合 `[INFO][模型名]` 标记和 `launch_slo
 3. 浏览器会自动打开 <http://127.0.0.1:1236>。
 4. 正常使用本地模型，数据会在 2 秒内自动出现。
 
-启动窗口需要保持打开；关闭窗口即停止服务。
+启动窗口需要保持打开；关闭窗口即停止服务。也可以双击 `stop.bat`，或使用页面内的“停止服务”操作，见下一节。
+
+### 停止服务
+
+任选一种方式：
+
+- 在启动窗口按 `Ctrl+C`，或直接关闭窗口。
+- Windows 双击 `stop.bat`；如果使用了其它端口，命令行运行 `stop.bat 1240`。
+- macOS / Linux 运行 `./stop.sh`；指定端口用 `./stop.sh 1240`。
+- 打开页面右上角信息按钮 → 滚到“停止服务” → 点击并在二次确认中确认。
+
+停止后端口会释放，页面会显示“Token Lens 已停止”，已采集的数据仍保存在 SQLite 中。重新启动后刷新页面即可继续查看。
+
+`stop.bat` / `stop.sh` 会先确认占用端口的进程是 Node，且命令行包含 Token Lens 的 `server/index.js`，优先调用正常退出接口，必要时才结束进程；其它程序占用该端口时会被拒绝并提示。
 
 ### macOS / Linux
 
@@ -210,7 +223,10 @@ test/
   stats.test.js  聚合 SQL 与时间范围测试
 
 start.bat         Windows 启动脚本
+stop.bat          Windows 停止脚本（可带端口参数）
+stop.ps1          stop.bat 使用的 PowerShell 实现
 start.sh          macOS / Linux 启动脚本
+stop.sh           macOS / Linux 停止脚本
 data/             SQLite 数据库（gitignore）
 ```
 
@@ -228,6 +244,15 @@ npm run build
 或者直接使用仓库里已经构建好的版本。
 
 **端口 1236 被占用**
+
+如果是 Token Lens 自身还在运行，优先使用停止脚本：
+
+```text
+Windows: 双击 stop.bat，或在命令行运行 stop.bat
+macOS / Linux: ./stop.sh
+```
+
+也可以换一个端口启动：
 
 ```bash
 npm start -- --port 1237
