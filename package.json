@@ -1,0 +1,29 @@
+{
+  "name": "token-lens",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "LM Studio 本地模型 Token 用量与速度观测台",
+  "scripts": {
+    "start": "node --experimental-sqlite server/index.js",
+    "dev": "concurrently -k -n api,web -c yellow,cyan \"node --experimental-sqlite server/index.js --dev --no-open\" \"vite --config web/vite.config.ts\"",
+    "build": "vite build --config web/vite.config.ts",
+    "typecheck": "tsc --noEmit -p web/tsconfig.json",
+    "test": "node --experimental-sqlite --test test/*.test.js",
+    "scan": "node --experimental-sqlite server/index.js --scan-only"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "recharts": "^2.15.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
+  }
+}
