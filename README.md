@@ -1,4 +1,4 @@
-# Token Lens
+# Token Counter（自用）
 
 **LM Studio 本地模型的 Token 用量与速度观测台。**
 
